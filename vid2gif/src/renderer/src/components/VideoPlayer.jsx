@@ -1,70 +1,105 @@
-import React, { useRef, useState, useEffect } from 'react';
-import Slider from 'rc-slider';
-import 'rc-slider/assets/index.css';
+import React, { useRef, useState, useEffect } from 'react'
+import Slider from 'rc-slider'
+import 'rc-slider/assets/index.css'
+import gifshot from 'gifshot'
 
 function VideoPlayer() {
-  const videoRef = useRef(null);
-  const [startTime, setStartTime] = useState(0);
-  const [endTime, setEndTime] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const [sampleInterval, setSampleInterval] = useState(100); // Adjust this as needed
-  const [capturedFrames, setCapturedFrames] = useState([]);
-  
+  const videoRef = useRef(null)
+  const [startTime, setStartTime] = useState(0)
+  const [endTime, setEndTime] = useState(0)
+  const [duration, setDuration] = useState(0)
+  const [sampleInterval, setSampleInterval] = useState(100) // Adjust this as needed
+  const [capturedFrames, setCapturedFrames] = useState([])
+  const [generatedGifUrl, setGeneratedGifUrl] = useState(null)
+
   useEffect(() => {
     if (videoRef.current) {
       videoRef.current.addEventListener('loadedmetadata', () => {
-        setDuration(videoRef.current.duration);
-        setEndTime(videoRef.current.duration);
-      });
+        setDuration(videoRef.current.duration)
+        setEndTime(videoRef.current.duration)
+      })
     }
-  }, []);
+  }, [])
 
   const handleFileSelect = (e) => {
-    const file = e.target.files[0];
+    const file = e.target.files[0]
     if (file) {
-      const videoURL = URL.createObjectURL(file);
-      videoRef.current.src = videoURL;
-      videoRef.current.load();
-      videoRef.current.play();
+      const videoURL = URL.createObjectURL(file)
+      videoRef.current.src = videoURL
+      videoRef.current.load()
+      videoRef.current.play()
     }
-  };
+  }
 
   const handleSliderChange = (values) => {
-    setStartTime(values[0]);
-    setEndTime(values[1]);
-  };
+    setStartTime(values[0])
+    setEndTime(values[1])
+  }
 
   const handlePlayRange = () => {
     if (videoRef.current) {
-      videoRef.current.currentTime = startTime;
-      videoRef.current.play();
+      videoRef.current.currentTime = startTime
+      videoRef.current.play()
     }
-  };
+  }
 
   const captureFrames = () => {
-    let currentTime = startTime;
-    const frames = [];
+    let currentTime = startTime
+    const frames = []
 
     const captureFrame = () => {
       if (videoRef.current && currentTime <= endTime) {
-        videoRef.current.currentTime = currentTime;
-        const canvas = document.createElement('canvas');
-        canvas.width = videoRef.current.videoWidth;
-        canvas.height = videoRef.current.videoHeight;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-        const dataUrl = canvas.toDataURL('image/jpeg');
-        frames.push(dataUrl);
-        currentTime += sampleInterval / 1000; // Convert ms to seconds
+        videoRef.current.currentTime = currentTime
 
-        setTimeout(captureFrame, sampleInterval);
+        // Capture a frame as an image data URL
+        const canvas = document.createElement('canvas')
+        canvas.width = videoRef.current.videoWidth
+        canvas.height = videoRef.current.videoHeight
+        const ctx = canvas.getContext('2d')
+        ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height)
+        const dataUrl = canvas.toDataURL('image/jpeg')
+        frames.push(dataUrl)
+
+        currentTime += sampleInterval / 1000 // Convert ms to seconds
+        setTimeout(captureFrame, sampleInterval)
       } else {
-        setCapturedFrames(frames);
+        setCapturedFrames(frames)
       }
-    };
+    }
 
-    captureFrame();
-  };
+    captureFrame()
+  }
+
+  useEffect(() => {
+    console.log(capturedFrames)
+
+    createGif(capturedFrames)
+  }, [capturedFrames])
+
+  const createGif = (frames) => {
+    console.log('Gif Started')
+    const frameUrls = frames.map((frameDataUrl) => ({ src: frameDataUrl }))
+
+    gifshot.createGIF(
+      {
+        images: frameUrls,
+        gifWidth: videoRef.current.videoWidth,
+        gifHeight: videoRef.current.videoHeight,
+        frameDuration: sampleInterval / 10
+      },
+      (obj) => {
+        console.log('Gif Callback Executed', obj)
+        if (!obj.error) {
+          const animatedImage = document.createElement('img')
+          animatedImage.src = obj.image
+          document.body.appendChild(animatedImage)
+          console.log('Gif Created')
+        } else {
+          console.log('Gif Failed')
+        }
+      }
+    )
+  }
 
   return (
     <div className="outer-container">
@@ -88,7 +123,7 @@ function VideoPlayer() {
         value={[startTime, endTime]}
         onChange={handleSliderChange}
       />
-    
+
       <button onClick={handlePlayRange}>Play Range</button>
       <button onClick={captureFrames}>Capture Frames</button>
 
@@ -106,8 +141,16 @@ function VideoPlayer() {
           ))}
         </div>
       )}
+
+      {/* Display the generated GIF */}
+      {generatedGifUrl && (
+        <div>
+          <h2>Generated GIF:</h2>
+          <img src={generatedGifUrl} alt="Generated GIF" />
+        </div>
+      )}
     </div>
-  );
+  )
 }
 
-export default VideoPlayer;
+export default VideoPlayer
