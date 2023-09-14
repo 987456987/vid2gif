@@ -1,63 +1,73 @@
-import { useRef, useState, useEffect } from 'react'
-import Slider from 'rc-slider'
-import 'rc-slider/assets/index.css'
-import '../assets/rc-custom.css'
+import React, { useRef, useState, useEffect } from 'react';
+import Slider from 'rc-slider';
+import 'rc-slider/assets/index.css';
 
-const VideoPlayer = () => {
-  const videoRef = useRef(null)
-  const [startTime, setStartTime] = useState(0)
-  const [endTime, setEndTime] = useState(0)
-  const [duration, setDuration] = useState(0)
-
+function VideoPlayer() {
+  const videoRef = useRef(null);
+  const [startTime, setStartTime] = useState(0);
+  const [endTime, setEndTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [sampleInterval, setSampleInterval] = useState(100); // Adjust this as needed
+  const [capturedFrames, setCapturedFrames] = useState([]);
+  
   useEffect(() => {
     if (videoRef.current) {
       videoRef.current.addEventListener('loadedmetadata', () => {
-        setDuration(videoRef.current.duration)
-        setEndTime(videoRef.current.duration)
-      })
+        setDuration(videoRef.current.duration);
+        setEndTime(videoRef.current.duration);
+      });
     }
-  }, [])
+  }, []);
 
   const handleFileSelect = (e) => {
-    const file = e.target.files[0]
+    const file = e.target.files[0];
     if (file) {
-      const videoURL = URL.createObjectURL(file)
-      videoRef.current.src = videoURL
-      videoRef.current.load()
-      videoRef.current.play()
+      const videoURL = URL.createObjectURL(file);
+      videoRef.current.src = videoURL;
+      videoRef.current.load();
+      videoRef.current.play();
     }
-  }
+  };
 
   const handleSliderChange = (values) => {
-    setStartTime(values[0])
-    setEndTime(values[1])
-  }
+    setStartTime(values[0]);
+    setEndTime(values[1]);
+  };
 
   const handlePlayRange = () => {
     if (videoRef.current) {
-      videoRef.current.currentTime = startTime
-      videoRef.current.play()
+      videoRef.current.currentTime = startTime;
+      videoRef.current.play();
     }
-  }
+  };
 
-  useEffect(() => {
-    const handleTimeUpdate = () => {
-      if (videoRef.current) {
-        if (videoRef.current.currentTime >= endTime) {
-          videoRef.current.pause()
-        }
+  const captureFrames = () => {
+    let currentTime = startTime;
+    const frames = [];
+
+    const captureFrame = () => {
+      if (videoRef.current && currentTime <= endTime) {
+        videoRef.current.currentTime = currentTime;
+        const canvas = document.createElement('canvas');
+        canvas.width = videoRef.current.videoWidth;
+        canvas.height = videoRef.current.videoHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+        const dataUrl = canvas.toDataURL('image/jpeg');
+        frames.push(dataUrl);
+        currentTime += sampleInterval / 1000; // Convert ms to seconds
+
+        setTimeout(captureFrame, sampleInterval);
+      } else {
+        setCapturedFrames(frames);
       }
-    }
+    };
 
-    videoRef.current.addEventListener('timeupdate', handleTimeUpdate)
-
-    return () => {
-      videoRef.current.removeEventListener('timeupdate', handleTimeUpdate)
-    }
-  }, [endTime])
+    captureFrame();
+  };
 
   return (
-    <div className='outer-container'>
+    <div className="outer-container">
       <input type="file" accept="video/*" onChange={handleFileSelect} />
 
       <video ref={videoRef} controls style={{ width: '100%', height: 'auto' }}>
@@ -78,10 +88,26 @@ const VideoPlayer = () => {
         value={[startTime, endTime]}
         onChange={handleSliderChange}
       />
-
+    
       <button onClick={handlePlayRange}>Play Range</button>
+      <button onClick={captureFrames}>Capture Frames</button>
+
+      {/* Display the captured frames */}
+      {capturedFrames.length > 0 && (
+        <div>
+          <h2>Captured Frames:</h2>
+          {capturedFrames.map((frame, index) => (
+            <img
+              key={index}
+              src={frame}
+              alt={`Frame ${index}`}
+              style={{ maxWidth: '200px', maxHeight: '200px' }}
+            />
+          ))}
+        </div>
+      )}
     </div>
-  )
+  );
 }
 
-export default VideoPlayer
+export default VideoPlayer;
